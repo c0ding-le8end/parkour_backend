@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, make_response
-from database import db
+from database import db,init_db
 from models import User, Street, Parking_history, Surveys
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -309,8 +309,10 @@ def logout():
 def shutdown_session(exception=None):
     db.remove()
 
-
-app.run(host='127.0.0.1', port=5000, debug=True)
+@app.before_request
+def main():
+    init_db()
+app.run(host='127.0.0.1')
 
 
 # @app.route('/users', methods=['GET'])
