@@ -313,7 +313,7 @@ def shutdown_session(exception=None):
 @app.before_request
 def main():
     init_db()
-app.run(host="https://parkourbackend.herokuapp.com")
+app.run()
  # app.run(host='127.0.0.1', port=5000, debug=True)
 
 
