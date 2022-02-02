@@ -61,6 +61,7 @@ def get_streets():
     return response
 
 
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -313,6 +314,7 @@ def shutdown_session(exception=None):
 def main():
     init_db()
 app.run(host="https://parkourbackend.herokuapp.com")
+ # app.run(host='127.0.0.1', port=5000, debug=True)
 
 
 # @app.route('/users', methods=['GET'])
