@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, make_response
-from database import db,init_db
+from database import db, init_db
 from models import User, Street, Parking_history, Surveys
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,19 +13,18 @@ import sys
 app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
      allow_headers=['X-CSRFToken'])
-app.config['SECRET_KEY'] = 'thisissecret'
-app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+# app.config['SECRET_KEY'] = 'thisissecret'
+# app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
 
-app.config[
-    'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
-
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='None',
-)
-
+# app.config[
+#     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
+#
+# app.config.update(
+#     SESSION_COOKIE_SECURE=True,
+#     SESSION_COOKIE_HTTPONLY=True,
+#     SESSION_COOKIE_SAMESITE='None',
+# )
 csrf = CSRFProtect(app)
 
 
@@ -42,13 +41,13 @@ def get_streets():
     streets = Street.query.all()
     resultList = []
     for street in streets:
-        coordinates= street.coordinate_string.strip('][').replace(')','').replace('(','').split(',')
-        refined_coordinates=[]
-        lat_lang=[]
+        coordinates = street.coordinate_string.strip('][').replace(')', '').replace('(', '').split(',')
+        refined_coordinates = []
+        lat_lang = []
         for coordinate in coordinates:
-            if len(lat_lang)==2:
+            if len(lat_lang) == 2:
                 refined_coordinates.append(lat_lang)
-                lat_lang=[]
+                lat_lang = []
             lat_lang.append(float(coordinate))
 
         d = {'streetName': street.street_name, 'startLatitude': street.start_latitude,
@@ -59,7 +58,6 @@ def get_streets():
         resultList.append(d)
     response = jsonify(resultList)
     return response
-
 
 
 def token_required(f):
@@ -101,11 +99,11 @@ def validate(current_user):
         data['street_name'] = street.street_name
         parking_history.append(data)
     user_data['parking_history'] = parking_history
-    survey=Surveys.query.filter(Surveys.user_id == current_user.user_id).first()
-    if survey==None:
-        survey_given="false"
+    survey = Surveys.query.filter(Surveys.user_id == current_user.user_id).first()
+    if survey == None:
+        survey_given = "false"
     else:
-        survey_given="true"
+        survey_given = "true"
     parking_record = Parking_history.query.filter(Parking_history.booking_id == current_user.id_of_last_booking).first()
     if parking_record == None:
         estimated_start_time = None
@@ -120,7 +118,7 @@ def validate(current_user):
     return jsonify(
         {'validToken': 'true', 'userData': user_data, 'estimated_start_time_of_previous_booking': estimated_start_time,
          'start_time': start_time_of_previous_booking,
-         'street_name': street_name,'survey_given':survey_given})
+         'street_name': street_name, 'survey_given': survey_given})
 
 
 @app.route('/survey', methods=['POST'])
@@ -136,9 +134,6 @@ def post_survey(current_user):
     db.add(survey)
     db.commit()
     return jsonify({'status': 'success'})
-
-
-
 
 
 @app.route('/book', methods=['POST'])
@@ -205,13 +200,10 @@ def create_user():
     response = make_response(jsonify({'csrf': csrf, 'userData': user_data,
                                       'estimated_start_time_of_previous_booking': None,
                                       'start_time': None,
-                                      'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
+                                      'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'], 'survey_given': "false"}, ))
     response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
 
     return response
-
-
-
 
 
 @app.route('/user/<user_id>', methods=['DELETE'])
@@ -268,17 +260,17 @@ def login():
                 data['street_name'] = street.street_name
                 parking_history.append(data)
             user_data['parking_history'] = parking_history
-            survey=Surveys.query.filter(Surveys.user_id == user.user_id).first()
-            if survey==None:
-                survey_given="false"
+            survey = Surveys.query.filter(Surveys.user_id == user.user_id).first()
+            if survey == None:
+                survey_given = "false"
             else:
-                survey_given="true"
+                survey_given = "true"
             parking_record = Parking_history.query.filter(Parking_history.booking_id == user.id_of_last_booking).first()
 
             if parking_record == None:
                 street_name = None
-                start_time_of_previous_booking=None
-                estimated_start_time=None
+                start_time_of_previous_booking = None
+                estimated_start_time = None
             else:
                 estimated_start_time = str(parking_record.estimated_start_time)
                 street = Street.query.filter(Street.street_id == parking_record.street_id).first()
@@ -288,7 +280,7 @@ def login():
                                               'estimated_start_time_of_previous_booking': estimated_start_time,
                                               'start_time': start_time_of_previous_booking,
                                               'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],
-                                              'street_name':street_name,'survey_given':survey_given}, ))
+                                              'street_name': street_name, 'survey_given': survey_given}, ))
 
             response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
         else:
@@ -310,9 +302,20 @@ def logout():
 def shutdown_session(exception=None):
     db.remove()
 
+
 if __name__ == '__main__':
+    app.config['SECRET_KEY'] = 'thisissecret'
+    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+    app.config[
+        'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
+
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='None',
+    )
     app.run()
- # app.run(host='127.0.0.1', port=5000, debug=True)
+# app.run(host='127.0.0.1', port=5000, debug=True)
 
 
 # @app.route('/users', methods=['GET'])
