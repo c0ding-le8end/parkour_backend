@@ -5,6 +5,7 @@ import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
+from  flask_session import  Session
 from sqlalchemy import desc
 from flask_cors import CORS
 from functools import wraps
@@ -27,7 +28,7 @@ app.config.update(
 )
 
 csrf = CSRFProtect(app)
-
+Session(app)
 
 # engine = db.create_engine('mysql+pymysql://root:epsilon1630@localhost/PARKING_MANAGEMENT')
 
