@@ -16,7 +16,7 @@ CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_cred
 app.config['SECRET_KEY'] = 'thisissecret'
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
-
+from  flask_session import  Session
 app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
 
@@ -25,6 +25,8 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
 )
+app.config["SESSION_PERMANENT"] = True
+app.config["SESSION_TYPE"] = "filesystem"
 
 csrf = CSRFProtect(app)
 
