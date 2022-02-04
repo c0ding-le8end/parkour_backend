@@ -12,7 +12,7 @@ import sys
 
 app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
-     allow_headers=['X-CSRFToken'])
+     allow_headers=['X-CSRFToken',])
 app.config['SECRET_KEY'] = 'thisissecret'
 
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
@@ -207,7 +207,7 @@ def create_user():
                                       'estimated_start_time_of_previous_booking': None,
                                       'start_time': None,
                                       'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
-    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", secure=True)
 
     return response
 
