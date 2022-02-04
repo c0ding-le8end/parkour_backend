@@ -14,7 +14,6 @@ app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
      allow_headers=['X-CSRFToken'])
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['token_key']='chachachaBlingBlingBling'
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
 
@@ -22,7 +21,7 @@ app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
 
 app.config.update(
-
+    SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
 )
@@ -207,7 +206,7 @@ def create_user():
                                       'estimated_start_time_of_previous_booking': None,
                                       'start_time': None,
                                       'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
-    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', )
+    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
 
     return response
 
