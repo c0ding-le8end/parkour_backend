@@ -82,8 +82,10 @@ def token_required(f):
 
 
 @app.route('/validate', methods=['POST'])
+@csrf.exempt
 @token_required
 def validate(current_user):
+    csrf_existence=request.get_data('X-CSRFToken')
     user_data = {}
     user_data['user_id'] = current_user.user_id
     user_data['name'] = current_user.name
@@ -121,7 +123,7 @@ def validate(current_user):
     return jsonify(
         {'validToken': 'true', 'userData': user_data, 'estimated_start_time_of_previous_booking': estimated_start_time,
          'start_time': start_time_of_previous_booking,
-         'street_name': street_name,'survey_given':survey_given})
+         'street_name': street_name,'survey_given':survey_given,'csrf_existence':csrf_existence})
 
 
 @app.route('/survey', methods=['POST'])
