@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response,g
 from database import db,init_db
 from models import User, Street, Parking_history, Surveys
 import uuid
@@ -14,6 +14,7 @@ app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
      allow_headers=['X-CSRFToken'])
 app.config['SECRET_KEY'] = 'thisissecret'
+app.config['SESSION_COOKIE_SECURE'] = False
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
 
@@ -21,7 +22,6 @@ app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
 
 app.config.update(
-    SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
 )
@@ -206,7 +206,7 @@ def create_user():
                                       'estimated_start_time_of_previous_booking': None,
                                       'start_time': None,
                                       'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
-    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=False)
 
     return response
 
@@ -309,6 +309,12 @@ def logout():
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db.remove()
+
+@app.before_request
+def fix_missing_csrf_token():
+    if app.config['WTF_CSRF_FIELD_NAME'] not in session:
+        if app.config['WTF_CSRF_FIELD_NAME'] in g:
+            g.pop(app.config['WTF_CSRF_FIELD_NAME'])
 
 if __name__ == '__main__':
     app.run()
