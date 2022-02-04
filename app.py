@@ -22,11 +22,12 @@ app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
 
 app.config.update(
+    SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
 )
 
-csrf = CSRFProtect(app)
+# csrf = CSRFProtect(app)
 
 
 # engine = db.create_engine('mysql+pymysql://root:epsilon1630@localhost/PARKING_MANAGEMENT')
@@ -178,7 +179,7 @@ def book_parking(current_user):
 
 
 @app.route('/signup', methods=['POST'])
-@csrf.exempt
+# @csrf.exempt
 def create_user():
     data = request.form
     check_email_existence = User.query.filter(User.email == data.get('email')).first()
@@ -229,7 +230,7 @@ def delete_user(current_user, user_id):
 
 
 @app.route('/login', methods=['POST'])
-@csrf.exempt
+# @csrf.exempt
 def login():
     auth = request.form
 
