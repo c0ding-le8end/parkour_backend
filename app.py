@@ -14,15 +14,15 @@ app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
      allow_headers=['X-CSRFToken'])
 app.config['SECRET_KEY'] = 'thisissecret'
+
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
 
 app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
-app.config['SESSION_COOKIE_SECURE'] = False
-app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+
 app.config.update(
-    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SECURE=False,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
 )
@@ -82,10 +82,8 @@ def token_required(f):
 
 
 @app.route('/validate', methods=['POST'])
-@csrf.exempt
 @token_required
 def validate(current_user):
-    csrf_existence=request.get_data('X-CSRFToken')
     user_data = {}
     user_data['user_id'] = current_user.user_id
     user_data['name'] = current_user.name
@@ -123,7 +121,7 @@ def validate(current_user):
     return jsonify(
         {'validToken': 'true', 'userData': user_data, 'estimated_start_time_of_previous_booking': estimated_start_time,
          'start_time': start_time_of_previous_booking,
-         'street_name': street_name,'survey_given':survey_given,'csrf_existence':csrf_existence})
+         'street_name': street_name,'survey_given':survey_given})
 
 
 @app.route('/survey', methods=['POST'])
@@ -293,7 +291,7 @@ def login():
                                               'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],
                                               'street_name':street_name,'survey_given':survey_given}, ))
 
-            response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+            response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=False)
         else:
             response = make_response(jsonify({'status': 'Enter valid credentials'}),
                                      401)  # {'WWW-Authenticate': 'Basic realm="Login required!"'})
@@ -313,17 +311,10 @@ def logout():
 def shutdown_session(exception=None):
     db.remove()
 
-@app.before_request
-def fix_missing_csrf_token():
-    app.config[
-        'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
-    app.config['SESSION_COOKIE_SECURE'] = False
-    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
-    # app.run()
  # app.run(host='127.0.0.1', port=5000, debug=True)
 
 
