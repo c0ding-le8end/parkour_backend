@@ -22,7 +22,7 @@ app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
 
 app.config.update(
-    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
 )
@@ -291,7 +291,7 @@ def login():
                                               'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],
                                               'street_name':street_name,'survey_given':survey_given}, ))
 
-            response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=False)
+            response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
         else:
             response = make_response(jsonify({'status': 'Enter valid credentials'}),
                                      401)  # {'WWW-Authenticate': 'Basic realm="Login required!"'})
