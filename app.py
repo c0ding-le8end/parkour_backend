@@ -14,13 +14,13 @@ app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
      allow_headers=['X-CSRFToken'])
 app.config['SECRET_KEY'] = 'thisissecret'
-app.config['SESSION_COOKIE_SECURE'] = False
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
 
 app.config[
     'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
-
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
@@ -313,12 +313,15 @@ def shutdown_session(exception=None):
 
 @app.before_request
 def fix_missing_csrf_token():
-    if app.config['WTF_CSRF_FIELD_NAME'] not in session:
-        if app.config['WTF_CSRF_FIELD_NAME'] in g:
-            g.pop(app.config['WTF_CSRF_FIELD_NAME'])
+    app.config[
+        'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
+    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='127.0.0.1', port=5000, debug=True)
+    # app.run()
  # app.run(host='127.0.0.1', port=5000, debug=True)
 
 
