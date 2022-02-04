@@ -209,7 +209,7 @@ def create_user():
                                       'estimated_start_time_of_previous_booking': None,
                                       'start_time': None,
                                       'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
-    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=False)
+    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
 
     return response
 
