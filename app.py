@@ -24,6 +24,7 @@ app.config[
 app.config.update(
     SESSION_COOKIE_SECURE=False,
     SESSION_COOKIE_HTTPONLY=True,
+    domain='127.0.0.1',
     SESSION_COOKIE_SAMESITE='None',
 )
 
