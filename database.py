@@ -4,7 +4,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
 
-engine = create_engine('mysql+pymysql://root:Kb9tMfwuC9Hkvqtc@34.93.166.173/parking_management')
+# engine = create_engine('mysql+pymysql://root:Kb9tMfwuC9Hkvqtc@34.93.166.173/parking_management')
+engine = create_engine('mysql+pymysql://root:epsilon1630@localhost/parking_management')
 db = scoped_session(sessionmaker(autocommit=False,
                                  autoflush=False,
                                  bind=engine))

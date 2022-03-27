@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response,g
 from database import db,init_db
 from models import User, Street, Parking_history, Surveys
 import uuid
@@ -12,7 +12,7 @@ import sys
 
 app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
-     allow_headers=['X-CSRFToken',])
+     allow_headers=['X-CSRFToken','session_key'])
 app.config['SECRET_KEY'] = 'thisissecret'
 
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600
@@ -24,6 +24,7 @@ app.config[
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_DOMAIN='127.0.0.1',
     SESSION_COOKIE_SAMESITE='None',
 )
 
@@ -66,7 +67,8 @@ def get_streets():
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.cookies.get('jwt')
+        # token = request.cookies.get('jwt')
+        token=request.headers.get('session_key')
         if not token:
             return jsonify({'message': 'Token is missing!'}), 401
         try:
@@ -82,6 +84,7 @@ def token_required(f):
 
 
 @app.route('/validate', methods=['POST'])
+@csrf.exempt
 @token_required
 def validate(current_user):
     user_data = {}
@@ -125,6 +128,7 @@ def validate(current_user):
 
 
 @app.route('/survey', methods=['POST'])
+@csrf.exempt
 @token_required
 def post_survey(current_user):
     survey_form = request.form
@@ -143,6 +147,7 @@ def post_survey(current_user):
 
 
 @app.route('/book', methods=['POST'])
+@csrf.exempt
 @token_required
 def book_parking(current_user):
     booking_data = request.form
@@ -194,7 +199,8 @@ def create_user():
     db.flush()
     db.commit()
     token = jwt.encode(
-        {'user_id': new_user.user_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},app.config['SECRET_KEY'])
+        {'user_id': new_user.user_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
+        app.config['SECRET_KEY'])
     csrf = generate_csrf(app.config['WTF_CSRF_SECRET_KEY'])
     user_data = {}
     user_data['user_id'] = new_user.user_id
@@ -202,11 +208,12 @@ def create_user():
     user_data['email'] = new_user.email
     user_data['status_of_last_booking'] = ""
     user_data['parking_history'] = []
-    response = make_response(jsonify({'csrf': csrf, 'userData': user_data,
+    response = make_response(jsonify({'csrf': csrf,'session_key':token, 'userData': user_data,
                                       'estimated_start_time_of_previous_booking': None,
                                       'start_time': None,
                                       'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
     response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+
     return response
 
 
@@ -283,7 +290,7 @@ def login():
                 street = Street.query.filter(Street.street_id == parking_record.street_id).first()
                 street_name = street.street_name
                 start_time_of_previous_booking = str(parking_record.start_time)
-            response = make_response(jsonify({'csrf': csrf, 'userData': user_data,
+            response = make_response(jsonify({'csrf': csrf,'session_key':token, 'userData': user_data,
                                               'estimated_start_time_of_previous_booking': estimated_start_time,
                                               'start_time': start_time_of_previous_booking,
                                               'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],
@@ -313,7 +320,7 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
- # app.run(host='127.0.0.1', port=5000, debug=True)
+# app.run(host='127.0.0.1', port=5000, debug=True)
 
 
 # @app.route('/users', methods=['GET'])
