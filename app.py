@@ -30,7 +30,12 @@ app.config.update(
 csrf = CSRFProtect(app)
 
 
+# engine = db.create_engine('mysql+pymysql://root:epsilon1630@localhost/PARKING_MANAGEMENT')
 
+# metadata = db.MetaData()
+# streets = db.Table('STREET', metadata, autoload=True, autoload_with=engine)
+#
+#
 
 
 @app.route('/', methods=['Get'])
@@ -308,3 +313,50 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
+ # app.run(host='127.0.0.1', port=5000, debug=True)
+
+
+# @app.route('/users', methods=['GET'])
+# @token_required
+# def get_all_users(current_user):
+#     users = User.query.all()
+#
+#     output = []
+#
+#     for user in users:
+#         user_data = {}
+#         user_data['user_id'] = user.user_id
+#         user_data['name'] = user.name
+#         user_data['password'] = user.password
+#         output.append(user_data)
+#     response = jsonify({'users': output})
+#     return response
+#
+#
+# @app.route('/user', methods=['GET'])
+# @token_required
+# def get_one_user(current_user):
+#     # user = User.query.filter_by(user_id=user_id).first()
+#     #
+#     # if not user:
+#     #     return jsonify({'message': 'No user found!'})
+#
+#     user_data = {}
+#     user_data['user_id'] = current_user.user_id
+#     user_data['name'] = current_user.name
+#     user_data['email'] = current_user.email
+#
+#     return jsonify({'user': user_data})
+# @app.route('/user/<user_id>', methods=['PUT'])
+# @token_required
+# def promote_user(current_user, user_id):
+#
+#     user = User.query.filter_by(user_id=user_id).first()
+#
+#     if not user:
+#         return jsonify({'message': 'No user found!'})
+#
+#     user.admin = True
+#     db.commit()
+#
+#     return jsonify({'message': 'The user has been promoted!'})
