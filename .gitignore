@@ -1,2 +1,3 @@
-D:\flutter\projects\python_backend\venv/*
-D:\flutter\projects\python_backend\.idea/*
+
+/venv/
+/.idea/
