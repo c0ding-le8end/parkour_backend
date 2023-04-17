@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, make_response
-from database import db,init_db
-from models import User, Street, Parking_history, Surveys
+from database import db, init_db
+from models import User, Parking_history, Otp_repository
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
@@ -8,60 +8,20 @@ import datetime
 from sqlalchemy import desc
 from flask_cors import CORS
 from functools import wraps
+import random
 import sys
 
 app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE"], supports_credentials=True,
-     allow_headers=['X-CSRFToken',])
+     allow_headers=['X-CSRFToken', 'Authorization'])
 app.config['SECRET_KEY'] = 'thisissecret'
-
-app.config['WTF_CSRF_TIME_LIMIT'] = 3600
-from flask_wtf.csrf import CSRFProtect, generate_csrf, session, validate_csrf
-
-app.config[
-    'WTF_CSRF_SECRET_KEY'] = 'erenYeager'
-
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='None',
-)
-
-csrf = CSRFProtect(app)
-
-
-
-
-
-@app.route('/', methods=['Get'])
-def get_streets():
-    streets = Street.query.all()
-    resultList = []
-    for street in streets:
-        coordinates= street.coordinate_string.strip('][').replace(')','').replace('(','').split(',')
-        refined_coordinates=[]
-        lat_lang=[]
-        for coordinate in coordinates:
-            if len(lat_lang)==2:
-                refined_coordinates.append(lat_lang)
-                lat_lang=[]
-            lat_lang.append(float(coordinate))
-
-        d = {'streetName': street.street_name, 'startLatitude': street.start_latitude,
-             'startLongitude': street.start_longitude,
-             'stopLatitude': street.stop_latitude, 'stopLongitude': street.stop_longitude, 'id': street.street_id,
-             'availableSpaces': street.available_parking_spaces,
-             'coordinateString': refined_coordinates}
-        resultList.append(d)
-    response = jsonify(resultList)
-    return response
-
+list_of_parking_spaces = []
 
 
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.cookies.get('jwt')
+        token = request.headers.get('Authorization').split(" ")[1]
         if not token:
             return jsonify({'message': 'Token is missing!'}), 401
         try:
@@ -76,7 +36,7 @@ def token_required(f):
     return decorated
 
 
-@app.route('/validate', methods=['POST'])
+@app.route('/validate', methods=['GET'])
 @token_required
 def validate(current_user):
     user_data = {}
@@ -85,96 +45,127 @@ def validate(current_user):
     user_data['email'] = current_user.email
     user_data['status_of_last_booking'] = current_user.status_of_last_booking
     users_parking_record = Parking_history.query.filter(Parking_history.user_id == current_user.user_id).order_by(
-        desc(Parking_history.estimated_start_time)).all()
+        desc(Parking_history.start_time)).all()
     parking_history = []
     for record in users_parking_record:
-        data = {}
-        data['date'] = None if record.estimated_start_time == None else record.estimated_start_time.strftime("%d %B %Y")
-        data['start_time'] = None if record.start_time == None else record.start_time.strftime("%I:%M%p")
-        data['end_time'] = None if record.end_time == None else record.end_time.strftime("%I:%M%p")
-        data['status_of_parking'] = record.status_of_parking
-        street = Street.query.filter(Street.street_id == record.street_id).first()
-        data['street_name'] = street.street_name
+        data = {
+            'start_time': None if record.start_time == None else record.start_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            'end_time': None if record.end_time == None else record.end_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
+            'status_of_parking': record.status_of_parking,
+            'cost': record.bill_amount}
         parking_history.append(data)
     user_data['parking_history'] = parking_history
-    survey=Surveys.query.filter(Surveys.user_id == current_user.user_id).first()
-    if survey==None:
-        survey_given="false"
-    else:
-        survey_given="true"
     parking_record = Parking_history.query.filter(Parking_history.booking_id == current_user.id_of_last_booking).first()
+
     if parking_record == None:
-        estimated_start_time = None
         start_time_of_previous_booking = None
-        street_name = None
+        end_time_of_previous_booking = None
+        bill_amount = 0
     else:
-        estimated_start_time = str(parking_record.estimated_start_time)
-        street = Street.query.filter(Street.street_id == parking_record.street_id).first()
-        street_name = street.street_name
         start_time_of_previous_booking = str(parking_record.start_time)
+        end_time_of_previous_booking = str(parking_record.end_time)
+        bill_amount = parking_record.bill_amount
 
     return jsonify(
-        {'validToken': 'true', 'userData': user_data, 'estimated_start_time_of_previous_booking': estimated_start_time,
-         'start_time': start_time_of_previous_booking,
-         'street_name': street_name,'survey_given':survey_given})
+        {'details': user_data,
+         'start_time_of_previous_booking': start_time_of_previous_booking,
+         'end_time_of_previous_booking': end_time_of_previous_booking,
+         'bill_amount_of_previous_booking': bill_amount
+         })
 
 
-@app.route('/survey', methods=['POST'])
-@token_required
-def post_survey(current_user):
-    survey_form = request.form
-    check_existence = Surveys.query.filter(Surveys.user_id == current_user.user_id).first()
-    if check_existence != None:
-        return make_response(jsonify({'surveyAlreadyGiven': 'true'}), 300)
-    survey = Surveys(user_id=current_user.user_id, answer1=survey_form.get('answer1'),
-                     answer2=survey_form.get('answer2'), answer3=survey_form.get('answer3'),
-                     review=survey_form.get('review'))
-    db.add(survey)
-    db.commit()
-    return jsonify({'status': 'success'})
-
-
-
+@app.route('/test', methods=['GET'])
+def test():
+    return jsonify({"hello": "hello"})
 
 
 @app.route('/book', methods=['POST'])
 @token_required
 def book_parking(current_user):
     booking_data = request.form
-    if booking_data.get('parking_status') != None:
-        user = User.query.filter(User.user_id == current_user.user_id).first()
-        parking_record = Parking_history.query.filter(Parking_history.booking_id == user.id_of_last_booking).first()
-        if user.status_of_last_booking == 'invalid' or parking_record.status_of_parking == 'invalid':
-            return jsonify({'order_expired': 'true'})
-        parking_record.status_of_parking = booking_data.get('parking_status')
-
-        user.status_of_last_booking = booking_data.get('parking_status')
-        if parking_record.status_of_parking == 'completed':
-            parking_record.end_time = datetime.datetime.now()
-        elif parking_record.status_of_parking == 'started':
-            parking_record.start_time = datetime.datetime.now()
+    if booking_data.get("status") == "finished":
+        otp = str(random.randint(1000, 9999))
+        otp_record = Otp_repository.query.filter(Otp_repository.user_id == current_user.user_id).first()
+        otp_record.otp = otp
+        parking_record = Parking_history.query.filter(
+            Parking_history.booking_id == current_user.id_of_last_booking).first()
+        parking_record.status_of_parking = "finished"
+        db.flush()
         db.commit()
-        return jsonify({'query': 'success', 'parking_status': booking_data.get('parking_status'),
-                        'start_time': str(parking_record.start_time)})
-    date_time_str = booking_data.get("estimated_start_time")
-    date_time_str = datetime.datetime.now().strftime('%d:%m:%y') + ' ' + date_time_str
-    date_time_obj = datetime.datetime.strptime(date_time_str, '%d:%m:%y %I:%M%p')
-    if datetime.datetime.now() + datetime.timedelta(minutes=6) > date_time_obj:
-        return make_response(jsonify("an error occured. Try again "), 400)
-    parking_record = Parking_history(current_user.user_id, booking_data.get('street_id'), datetime.datetime.now(),
-                                     date_time_obj)
-    user = User.query.filter(User.user_id == current_user.user_id).first()
-    db.add(parking_record)
-    db.flush()
-    user.id_of_last_booking = parking_record.booking_id
-    user.status_of_last_booking = "pending"
-    db.commit()
-    return jsonify({'status_of_parking': "pending", "booking": "confirmed",
-                    "estimated_start_time": str(parking_record.estimated_start_time)})
+        return jsonify({'otp': otp})
+    else:
+        checkin_time_str = booking_data.get("checkInTime")
+        checkin_time_str = checkin_time_str
+        checkin_time_obj = datetime.datetime.strptime(checkin_time_str, '%Y-%m-%d %H:%M:%S.%f')
+        checkout_time_str = booking_data.get("checkOutTime")
+        checkout_time_str = checkout_time_str
+        checkout_time_obj = datetime.datetime.strptime(checkout_time_str, '%Y-%m-%d %H:%M:%S.%f')
+        parking_records = Parking_history.query.filter(
+            (((Parking_history.start_time < checkin_time_obj) & (checkin_time_obj < Parking_history.end_time)) |
+             ((Parking_history.start_time < checkout_time_obj) & (
+                     checkout_time_obj < Parking_history.end_time))) & Parking_history.status_of_parking != "ended").all()
+        # return make_response(jsonify({'message': len(parking_records)}), 400)
+
+        if len(parking_records) == 2:
+            return make_response(jsonify({'message': 'parking spaces unavailable at this time'}), 409)
+        parking_record = Parking_history(current_user.user_id, datetime.datetime.now(),
+                                         checkin_time_obj, checkout_time_obj, "booked",
+                                          (checkout_time_obj - checkin_time_obj).total_seconds() * 20 / 3600)
+        otp = str(random.randint(1000, 9999))
+        otp_record = Otp_repository.query.filter(Otp_repository.user_id == current_user.user_id).first()
+        otp_record.otp = otp
+        db.add(parking_record)
+        db.flush()
+        user = User.query.filter(User.user_id == current_user.user_id).first()
+        user.status_of_last_booking = "booked"
+        user.id_of_last_booking = parking_record.booking_id
+        db.flush()
+        db.commit()
+        return make_response(jsonify({'user_id': current_user.user_id, "otp": otp}), 200)
+    # if booking_data.get('parking_status') != None:
+    #     user = User.query.filter(User.user_id == current_user.user_id).first()
+    #     parking_record = Parking_history.query.filter(Parking_history.booking_id == user.id_of_last_booking).first()
+    #     if user.status_of_last_booking == 'invalid' or parking_record.status_of_parking == 'invalid':
+    #         return jsonify({'order_expired': 'true'})
+    #     parking_record.status_of_parking = booking_data.get('parking_status')
+    #
+    #     user.status_of_last_booking = booking_data.get('parking_status')
+    #     if parking_record.status_of_parking == 'completed':
+    #         parking_record.end_time = datetime.datetime.now()
+    #     elif parking_record.status_of_parking == 'started':
+    #         parking_record.start_time = datetime.datetime.now()
+    #     db.commit()
+    #     return jsonify({'query': 'success', 'parking_status': booking_data.get('parking_status'),
+    #                     'start_time': str(parking_record.start_time)})
+    # date_time_str = booking_data.get("estimated_start_time")
+    # date_time_str = datetime.datetime.now().strftime('%d:%m:%y') + ' ' + date_time_str
+    # date_time_obj = datetime.datetime.strptime(date_time_str, '%d:%m:%y %I:%M%p')
+    # if datetime.datetime.now() + datetime.timedelta(minutes=6) > date_time_obj:
+    #     return make_response(jsonify("an error occured. Try again "), 400)
+    # parking_record = Parking_history(current_user.user_id, booking_data.get('street_id'), datetime.datetime.now(),
+    #                                  date_time_obj)
+    # user = User.query.filter(User.user_id == current_user.user_id).first()
+    # db.add(parking_record)
+    # db.flush()
+    # user.id_of_last_booking = parking_record.booking_id
+    # user.status_of_last_booking = "pending"
+    # db.commit()
+    # return jsonify({'status_of_parking': "pending", "booking": "confirmed",
+    #                 "estimated_start_time": str(parking_record.estimated_start_time)})
+
+
+@app.route('/checkOtp', methods=['POST'])
+def check_otp():
+    data = request.form
+    user_id, otp = request.form.get('data').split(" ")
+    otp_record = Otp_repository.query.filter_by(Otp_repository.user_id == user_id)
+    if otp == Otp_repository.otp:
+        return jsonify({'signal': 1})
+    else:
+        return jsonify({'signal': 0})
 
 
 @app.route('/signup', methods=['POST'])
-@csrf.exempt
 def create_user():
     data = request.form
     check_email_existence = User.query.filter(User.email == data.get('email')).first()
@@ -183,29 +174,32 @@ def create_user():
     hashed_password = generate_password_hash(data['password'], method='sha256')
     if data.get('name') == None or data.get('phone_number') == None or data.get('email') == None:
         return make_response(jsonify({'message': 'Invalid data'}), 500)
-    new_user = User(user_id=str(uuid.uuid4()), name=data.get('name'), phone_number=data.get('phone_number'),
+    user_id = str(uuid.uuid4())
+    new_user = User(user_id=user_id, name=data.get('name'), phone_number=data.get('phone_number'),
                     email=data.get('email'), password=hashed_password, )
+
     db.add(new_user)
+    db.flush()
+    otp_record = Otp_repository(user_id=user_id)
+    db.add(otp_record)
     db.flush()
     db.commit()
     token = jwt.encode(
-        {'user_id': new_user.user_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},app.config['SECRET_KEY'])
-    csrf = generate_csrf(app.config['WTF_CSRF_SECRET_KEY'])
+        {'user_id': new_user.user_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
+        app.config['SECRET_KEY'])
     user_data = {}
     user_data['user_id'] = new_user.user_id
     user_data['name'] = new_user.name
     user_data['email'] = new_user.email
     user_data['status_of_last_booking'] = ""
     user_data['parking_history'] = []
-    response = make_response(jsonify({'csrf': csrf, 'userData': user_data,
-                                      'estimated_start_time_of_previous_booking': None,
-                                      'start_time': None,
-                                      'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],'survey_given':"false"}, ))
-    response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+    response = make_response(jsonify({'details': user_data,
+                                      'start_time_of_previous_booking': None,
+                                      'end_time_of_previous_booking': None,
+                                      }, ))
+    response.headers.add(_key='Authorization', _value=token)
+
     return response
-
-
-
 
 
 @app.route('/user/<user_id>', methods=['DELETE'])
@@ -223,12 +217,12 @@ def delete_user(current_user, user_id):
 
 
 @app.route('/login', methods=['POST'])
-@csrf.exempt
 def login():
     auth = request.form
 
     if not auth or not auth.get('email') or not auth.get('password'):
-        response = make_response(jsonify({'status': 'Enter valid credentials'}),
+        response = make_response(jsonify({'status': 'Enter valid credentials', 'auth': auth, 'email': auth.get('email'),
+                                          'password': auth.get('password')}),
                                  401)  # , {'WWW-Authenticate': 'Basic realm="Login required!"'})
     else:
         user = User.query.filter_by(email=auth.get('email')).first()
@@ -242,49 +236,34 @@ def login():
                 {'user_id': user.user_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
                 app.config['SECRET_KEY'])
 
-            csrf = generate_csrf(app.config['WTF_CSRF_SECRET_KEY'])
-            user_data = {}
-            user_data['user_id'] = user.user_id
-            user_data['name'] = user.name
-            user_data['email'] = user.email
-            user_data['status_of_last_booking'] = user.status_of_last_booking
-            users_parking_record = Parking_history.query.filter(Parking_history.user_id == user.user_id).order_by(
-                desc(Parking_history.estimated_start_time)).all()
+            user_data = {'user_id': user.user_id, 'name': user.name, 'email': user.email,
+                         'status_of_last_booking': user.status_of_last_booking}
+            users_parking_record = Parking_history.query.filter(Parking_history.user_id == user.user_id).all()
             parking_history = []
             for record in users_parking_record:
-                data = {}
-                data['date'] = None if record.estimated_start_time == None else record.estimated_start_time.strftime(
-                    "%d %B %Y")
-                data['start_time'] = None if record.start_time == None else record.start_time.strftime("%I:%M%p")
-                data['end_time'] = None if record.end_time == None else record.end_time.strftime("%I:%M%p")
-                data['status_of_parking'] = record.status_of_parking
-                street = Street.query.filter(Street.street_id == record.street_id).first()
-                data['street_name'] = street.street_name
+                data = {
+                    'start_time': None if record.start_time == None else record.start_time.strftime("%I:%M%p"),
+                    'end_time': None if record.end_time == None else record.end_time.strftime("%I:%M%p"),
+                    'status_of_parking': record.status_of_parking}
                 parking_history.append(data)
             user_data['parking_history'] = parking_history
-            survey=Surveys.query.filter(Surveys.user_id == user.user_id).first()
-            if survey==None:
-                survey_given="false"
-            else:
-                survey_given="true"
             parking_record = Parking_history.query.filter(Parking_history.booking_id == user.id_of_last_booking).first()
 
             if parking_record == None:
-                street_name = None
-                start_time_of_previous_booking=None
-                estimated_start_time=None
+                start_time_of_previous_booking = None
+                end_time_of_previous_booking = None
+                bill_amount = 0
             else:
-                estimated_start_time = str(parking_record.estimated_start_time)
-                street = Street.query.filter(Street.street_id == parking_record.street_id).first()
-                street_name = street.street_name
                 start_time_of_previous_booking = str(parking_record.start_time)
-            response = make_response(jsonify({'csrf': csrf, 'userData': user_data,
-                                              'estimated_start_time_of_previous_booking': estimated_start_time,
-                                              'start_time': start_time_of_previous_booking,
-                                              'timeLimit': app.config['WTF_CSRF_TIME_LIMIT'],
-                                              'street_name':street_name,'survey_given':survey_given}, ))
-
-            response.set_cookie(key='jwt', value=token, httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+                end_time_of_previous_booking = str(parking_record.end_time)
+                bill_amount = parking_record.bill_amount
+            response = make_response(jsonify(
+                {'details': user_data,
+                 'start_time_of_previous_booking': start_time_of_previous_booking,
+                 'end_time_of_previous_booking': end_time_of_previous_booking,
+                 'bill_amount_of_previous_booking': bill_amount
+                 }))
+            response.headers.add(_key='Authorization', _value=token)
         else:
             response = make_response(jsonify({'status': 'Enter valid credentials'}),
                                      401)  # {'WWW-Authenticate': 'Basic realm="Login required!"'})
@@ -295,15 +274,19 @@ def login():
 @app.route('/logout', methods=['GET'])
 def logout():
     response = make_response(jsonify({'logOutResult': 'success'}))
-    response.set_cookie(key='jwt', value="", httponly=True, samesite="None", domain='127.0.0.1', secure=True)
-    response.set_cookie(key='session', value="", httponly=True, samesite="None", domain='127.0.0.1', secure=True)
+    response.headers.remove('Authorization')
     return response
+
+
+@app.route('/getAvailableSpaces', methods=['GET'])
+def available_parking_spaces():
+    l = [{"row": 1, "column": 1, "available": "true"}, {"row": 1, "column": 2, "available": "false"}]
+    return jsonify({"spaces": l})
 
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db.remove()
-
 
 
 if __name__ == '__main__':
